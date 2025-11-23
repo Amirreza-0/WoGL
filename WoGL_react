@@ -1,0 +1,493 @@
+import React, { useState, useEffect } from 'react';
+import { Shield, AlertTriangle, Skull, Activity, Thermometer, Dices } from 'lucide-react';
+
+// --- Game Constants & Data ---
+
+const MAX_AMR = 10;
+const ZONE_CAPACITY = 5;
+const WIN_ZONE_COUNT = 5;
+
+// Initial Board State: 9 Zones representing the gut
+const INITIAL_ZONES = Array.from({ length: 9 }, (_, i) => ({
+  id: i,
+  name: `Zone ${i + 1}`,
+  goodTokens: 0,
+  badTokens: 0,
+  locked: false,
+}));
+
+// Card Templates
+const GOOD_DECK_TEMPLATE = [
+  { id: 'g1', title: 'Probiotic Yogurt', type: 'behavior', effect: 'add_good', val: 2, desc: 'Add 2 Good Bacteria to a zone.' },
+  { id: 'g2', title: 'Fiber Diet', type: 'behavior', effect: 'add_good', val: 1, desc: 'Add 1 Good Bacteria to a zone.' },
+  { id: 'g3', title: 'Hand Washing', type: 'behavior', effect: 'remove_bad', val: 1, desc: 'Remove 1 Bad Bacteria from a zone.' },
+  { id: 'g4', title: 'Targeted Antibiotic', type: 'antibiotic', effect: 'kill_bad', val: 2, amrCost: 1, desc: 'Remove 2 Bad Bacteria. AMR +1.' },
+  { id: 'g5', title: 'Broad Spectrum', type: 'antibiotic', effect: 'nuke_zone', val: 0, amrCost: 2, desc: 'Clear ALL bacteria in a zone. AMR +2.' },
+  { id: 'g6', title: 'Vaccination', type: 'behavior', effect: 'prevent_bad', val: 0, desc: 'Add 1 Good, Remove 1 Bad.' },
+];
+
+const BAD_DECK_TEMPLATE = [
+  { id: 'b1', title: 'Dirty Hands', type: 'behavior', effect: 'add_bad', val: 2, desc: 'Add 2 Bad Bacteria to a zone.' },
+  { id: 'b2', title: 'Sugary Snack', type: 'behavior', effect: 'add_bad', val: 1, desc: 'Add 1 Bad Bacteria to a zone.' },
+  { id: 'b3', title: 'Stress', type: 'behavior', effect: 'remove_good', val: 1, desc: 'Remove 1 Good Bacteria from a zone.' },
+  { id: 'b4', title: 'Viral Infection', type: 'antibiotic', effect: 'fake_antibiotic', val: 0, amrCost: 1, desc: 'Player takes antibiotics for a virus! Remove 1 Good. AMR +1.' },
+  { id: 'b5', title: 'Superbug Outbreak', type: 'behavior', effect: 'convert', val: 1, desc: 'Replace 1 Good with 1 Bad.' },
+  { id: 'b6', title: 'Travel Sickness', type: 'behavior', effect: 'add_bad', val: 3, desc: 'Add 3 Bad Bacteria.' },
+];
+
+const GLOBAL_EVENTS = [
+  { title: 'Farming Overuse', desc: 'Antibiotics in livestock run off. Remove 1 Bad from random zone, but AMR +1.', effect: 'farm_overuse' },
+  { title: 'Pandemic Scare', desc: 'Panic buying of meds. AMR +2.', effect: 'panic' },
+  { title: 'Public Health Campaign', desc: 'Awareness rises. Remove 1 Bad from all zones with >2 Bad.', effect: 'campaign' },
+  { title: 'Contaminated Water', desc: 'Add 1 Bad Bacteria to 3 random zones.', effect: 'water' },
+];
+
+// Helper to shuffle deck
+const shuffle = (array) => {
+  let deck = [...array, ...array, ...array]; 
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return deck.map((c, i) => ({ ...c, uniqueId: `${c.id}-${i}` }));
+};
+
+const WarOfGutlands = () => {
+  // --- State ---
+  const [zones, setZones] = useState(INITIAL_ZONES);
+  const [amrLevel, setAmrLevel] = useState(1);
+  const [turn, setTurn] = useState('good'); 
+  const [phase, setPhase] = useState('roll'); 
+  
+  const [goodDeck, setGoodDeck] = useState([]);
+  const [badDeck, setBadDeck] = useState([]);
+  const [goodHand, setGoodHand] = useState([]);
+  const [badHand, setBadHand] = useState([]);
+  
+  const [selectedCard, setSelectedCard] = useState(null);
+  const [diceResult, setDiceResult] = useState(null);
+  const [currentEvent, setCurrentEvent] = useState(null);
+  const [message, setMessage] = useState("Welcome to War of Gutlands! Good Bacteria start.");
+  const [winner, setWinner] = useState(null);
+
+  // --- Initialization ---
+  useEffect(() => {
+    initGame();
+  }, []);
+
+  const initGame = () => {
+    const gDeck = shuffle(GOOD_DECK_TEMPLATE);
+    const bDeck = shuffle(BAD_DECK_TEMPLATE);
+    
+    // Initial Setup: 2 tokens each randomly placed
+    const newZones = [...INITIAL_ZONES];
+    placeRandom(newZones, 'goodTokens', 2);
+    placeRandom(newZones, 'badTokens', 2);
+
+    setZones(newZones);
+    setGoodDeck(gDeck.slice(3));
+    setGoodHand(gDeck.slice(0, 3));
+    setBadDeck(bDeck.slice(3));
+    setBadHand(bDeck.slice(0, 3));
+    setAmrLevel(1);
+    setTurn('good');
+    setPhase('roll');
+    setDiceResult(null);
+    setCurrentEvent(null);
+    setWinner(null);
+    setMessage("New Game Started. Good Bacteria's Turn. Step 1: Roll the die!");
+  };
+
+  const placeRandom = (zoneArray, key, count) => {
+    for(let i=0; i<count; i++) {
+      const idx = Math.floor(Math.random() * 9);
+      if (zoneArray[idx].goodTokens + zoneArray[idx].badTokens < ZONE_CAPACITY) {
+        zoneArray[idx][key]++;
+      }
+    }
+  };
+
+  // --- Core Game Logic ---
+
+  const handleRoll = () => {
+    const roll = Math.floor(Math.random() * 20) + 1;
+    setDiceResult(roll);
+    
+    if (roll >= 15) {
+      const evt = GLOBAL_EVENTS[Math.floor(Math.random() * GLOBAL_EVENTS.length)];
+      setCurrentEvent(evt);
+      setPhase('resolve_event');
+      setMessage(`Rolled a ${roll}! GLOBAL EVENT: ${evt.title}`);
+    } else {
+      setPhase('action');
+      setMessage(`Rolled a ${roll}. No event. Step 2: Choose a card to play.`);
+    }
+  };
+
+  const resolveEvent = () => {
+    let newZones = [...zones];
+    let newAmr = amrLevel;
+
+    if (currentEvent.effect === 'farm_overuse') {
+       const idx = Math.floor(Math.random() * 9);
+       if (newZones[idx].badTokens > 0) newZones[idx].badTokens--;
+       newAmr += 1;
+    } else if (currentEvent.effect === 'panic') {
+      newAmr += 2;
+    } else if (currentEvent.effect === 'water') {
+      for(let i=0; i<3; i++) {
+        const idx = Math.floor(Math.random() * 9);
+        if (newZones[idx].goodTokens + newZones[idx].badTokens < ZONE_CAPACITY) {
+          newZones[idx].badTokens++;
+        }
+      }
+    } else if (currentEvent.effect === 'campaign') {
+      newZones.forEach(z => {
+        if(z.badTokens > 2) z.badTokens--;
+      });
+    }
+
+    setZones(newZones);
+    setAmrLevel(Math.min(newAmr, MAX_AMR));
+    checkWinCondition(newZones, newAmr);
+    setPhase('action');
+    setCurrentEvent(null);
+    setMessage("Event Resolved. Step 2: Choose a card to play.");
+  };
+
+  const handleCardClick = (card) => {
+    if (phase !== 'action') {
+      if (phase === 'roll') setMessage("⚠️ Please Roll the Die first! (Button on the left)");
+      else if (phase === 'resolve_event') setMessage("⚠️ Please resolve the Global Event first!");
+      return;
+    }
+
+    const isGoodTurn = turn === 'good';
+    const hand = isGoodTurn ? goodHand : badHand;
+    const isCardInHand = hand.some(c => c.uniqueId === card.uniqueId);
+
+    if (!isCardInHand) return; 
+    
+    if (selectedCard && selectedCard.uniqueId === card.uniqueId) {
+      setSelectedCard(null); 
+    } else {
+      setSelectedCard(card);
+      setMessage(`Selected ${card.title}. Step 3: Click a Zone on the board to target.`);
+    }
+  };
+
+  const handleZoneClick = (zoneId) => {
+    if (phase !== 'action' || !selectedCard) return;
+
+    const zoneIndex = zones.findIndex(z => z.id === zoneId);
+    const zone = zones[zoneIndex];
+    const totalTokens = zone.goodTokens + zone.badTokens;
+    const isFull = totalTokens >= ZONE_CAPACITY;
+
+    // Rule: Behavior cards cannot change fully occupied zones. Antibiotics can.
+    if (isFull && selectedCard.type !== 'antibiotic') {
+      setMessage("⛔ Zone is Full! Only Antibiotics can affect this zone.");
+      return;
+    }
+
+    let newZones = [...zones];
+    let currentZone = newZones[zoneIndex];
+    let newAmr = amrLevel;
+
+    switch (selectedCard.effect) {
+      case 'add_good':
+        currentZone.goodTokens = Math.min(currentZone.goodTokens + selectedCard.val, ZONE_CAPACITY - currentZone.badTokens);
+        break;
+      case 'add_bad':
+        currentZone.badTokens = Math.min(currentZone.badTokens + selectedCard.val, ZONE_CAPACITY - currentZone.goodTokens);
+        break;
+      case 'remove_bad':
+        currentZone.badTokens = Math.max(0, currentZone.badTokens - selectedCard.val);
+        break;
+      case 'remove_good':
+        currentZone.goodTokens = Math.max(0, currentZone.goodTokens - selectedCard.val);
+        break;
+      case 'kill_bad':
+        currentZone.badTokens = Math.max(0, currentZone.badTokens - selectedCard.val);
+        newAmr += selectedCard.amrCost;
+        break;
+      case 'nuke_zone':
+        currentZone.goodTokens = 0;
+        currentZone.badTokens = 0;
+        newAmr += selectedCard.amrCost;
+        break;
+      case 'fake_antibiotic':
+        currentZone.goodTokens = Math.max(0, currentZone.goodTokens - 1);
+        newAmr += selectedCard.amrCost;
+        break;
+      case 'convert':
+        if (currentZone.goodTokens > 0 && currentZone.goodTokens + currentZone.badTokens <= ZONE_CAPACITY) {
+           currentZone.goodTokens--;
+           currentZone.badTokens++;
+        }
+        break;
+      case 'prevent_bad': 
+        if (currentZone.badTokens > 0) currentZone.badTokens--;
+        if (currentZone.goodTokens + currentZone.badTokens < ZONE_CAPACITY) currentZone.goodTokens++;
+        break;
+      default:
+        break;
+    }
+
+    setZones(newZones);
+    setAmrLevel(Math.min(newAmr, MAX_AMR));
+    
+    endTurn(selectedCard);
+  };
+
+  const endTurn = (playedCard) => {
+    if (turn === 'good') {
+      const newHand = goodHand.filter(c => c.uniqueId !== playedCard.uniqueId);
+      if (goodDeck.length > 0) {
+        newHand.push(goodDeck[0]);
+        setGoodDeck(goodDeck.slice(1));
+      }
+      setGoodHand(newHand);
+      setTurn('bad');
+    } else {
+      const newHand = badHand.filter(c => c.uniqueId !== playedCard.uniqueId);
+      if (badDeck.length > 0) {
+        newHand.push(badDeck[0]);
+        setBadDeck(badDeck.slice(1));
+      }
+      setBadHand(newHand);
+      setTurn('good');
+    }
+
+    setSelectedCard(null);
+    setDiceResult(null);
+    setPhase('roll'); 
+    
+    checkWinCondition(zones, amrLevel); 
+  };
+
+  const checkWinCondition = (currentZones, currentAmr) => {
+    if (currentAmr >= MAX_AMR) {
+      setWinner('bad_amr');
+      setPhase('game_over');
+      return;
+    }
+
+    let goodZones = 0;
+    let badZones = 0;
+    let totalBadTokens = 0;
+
+    currentZones.forEach(z => {
+      totalBadTokens += z.badTokens;
+      if (z.goodTokens > z.badTokens) goodZones++;
+      if (z.badTokens > z.goodTokens) badZones++;
+    });
+
+    if (goodZones >= WIN_ZONE_COUNT) {
+      setWinner('good_control');
+      setPhase('game_over');
+    } else if (totalBadTokens === 0) {
+      setWinner('good_elimination');
+      setPhase('game_over');
+    } else if (badZones >= WIN_ZONE_COUNT) {
+      setWinner('bad_control');
+      setPhase('game_over');
+    } else {
+      setMessage(`Turn Ends. Next: ${turn === 'good' ? 'Bad' : 'Good'} Bacteria. Step 1: Roll.`);
+    }
+  };
+
+  // --- UI Components ---
+
+  const renderTokens = (good, bad) => {
+    let tokens = [];
+    for(let i=0; i<good; i++) tokens.push(<div key={`g-${i}`} className="w-4 h-4 rounded-full bg-blue-500 border border-white shadow-sm pointer-events-none" />);
+    for(let i=0; i<bad; i++) tokens.push(<div key={`b-${i}`} className="w-4 h-4 rounded-full bg-red-600 border border-white shadow-sm pointer-events-none" />);
+    const empty = ZONE_CAPACITY - (good + bad);
+    for(let i=0; i<empty; i++) tokens.push(<div key={`e-${i}`} className="w-4 h-4 rounded-full bg-gray-200 opacity-30 border border-gray-400 pointer-events-none" />);
+    return tokens;
+  };
+
+  const getCardStyle = (card, owner) => {
+    const isSelected = selectedCard && selectedCard.uniqueId === card.uniqueId;
+    const isActive = phase === 'action';
+    
+    const base = `relative flex flex-col p-2 w-28 h-40 rounded-lg shadow-md border-2 transition-all text-xs select-none bg-white cursor-pointer hover:-translate-y-2`;
+    const border = owner === 'good' ? "border-blue-400" : "border-red-400";
+    const selectedStyle = isSelected ? "ring-4 ring-yellow-400 scale-105 z-10" : "";
+    const activeStyle = isActive ? "opacity-100" : "opacity-50 hover:opacity-100 grayscale hover:grayscale-0";
+    const typeColor = card.type === 'antibiotic' ? 'bg-purple-50' : 'bg-gray-50';
+    
+    return `${base} ${border} ${selectedStyle} ${activeStyle} ${typeColor}`;
+  };
+
+  if (winner) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-amber-50 p-8 font-sans">
+        <h1 className="text-6xl font-bold mb-4">Game Over</h1>
+        <div className="text-2xl mb-8 text-center max-w-lg">
+          {winner === 'bad_amr' && <span className="text-red-600">Bad Bacteria Win! Antibiotic Resistance reached critical levels (10). Public health crisis!</span>}
+          {winner === 'bad_control' && <span className="text-red-600">Bad Bacteria Win! They have taken over 5 zones of the gut.</span>}
+          {winner === 'good_control' && <span className="text-blue-600">Good Bacteria Win! You have successfully colonized the gut with healthy flora.</span>}
+          {winner === 'good_elimination' && <span className="text-blue-600">Good Bacteria Win! All infection has been eliminated.</span>}
+        </div>
+        <button onClick={initGame} className="px-8 py-3 bg-green-600 text-white rounded-full font-bold shadow-lg hover:bg-green-700">
+          Play Again
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-screen bg-amber-50 text-slate-800 font-sans overflow-hidden">
+      
+      {/* Header */}
+      <header className="flex items-center justify-between px-6 py-3 bg-white shadow-sm border-b border-amber-200">
+        <h1 className="text-xl font-bold text-amber-900 flex items-center gap-2">
+          <Activity size={24} /> The War of Gutlands
+        </h1>
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <span className={`px-3 py-1 rounded-full font-bold ${turn === 'good' ? 'bg-blue-100 text-blue-800 border border-blue-300' : 'bg-red-100 text-red-800 border border-red-300'}`}>
+              Turn: {turn === 'good' ? 'Good Bacteria' : 'Bad Bacteria'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-lg border border-slate-300">
+             <span className="text-sm font-semibold text-slate-600">Last Roll:</span>
+             <span className="text-lg font-mono font-bold">{diceResult || '-'}</span>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Game Area */}
+      <div className="flex flex-1 overflow-hidden">
+        
+        {/* Left: Barometer & Stats */}
+        <aside className="w-64 bg-white border-r border-amber-100 p-4 flex flex-col gap-4 overflow-y-auto shrink-0">
+          
+          {/* Status - MOVED UP */}
+          <div className="p-4 bg-amber-100 rounded-lg text-sm border-l-4 border-amber-500 shrink-0">
+            <h4 className="font-bold text-amber-800 mb-1">Status</h4>
+            <p>{message}</p>
+          </div>
+
+          {/* Roll Button - MOVED UP to be visible */}
+          {phase === 'roll' && (
+            <button 
+              onClick={handleRoll}
+              className="w-full py-4 bg-indigo-600 text-white rounded-lg font-bold text-xl shadow-lg hover:bg-indigo-700 flex items-center justify-center gap-2 animate-pulse ring-4 ring-indigo-200 shrink-0"
+            >
+              <Dices size={24} /> Roll Die
+            </button>
+          )}
+
+          {phase === 'action' && (
+             <div className="text-center text-sm text-slate-500 italic py-2 border border-slate-200 rounded bg-slate-50 shrink-0">
+               Select a card to play...
+             </div>
+          )}
+
+          {/* AMR Barometer */}
+          <div className="flex flex-col items-center mt-4 shrink-0">
+            <h3 className="font-bold text-slate-700 mb-2 flex items-center gap-2">
+              <Thermometer className="text-red-500" /> AMR Level
+            </h3>
+            <div className="w-12 h-64 bg-gray-200 rounded-full relative border-2 border-gray-300 overflow-hidden flex flex-col-reverse">
+               {Array.from({length: 10}).map((_, i) => (
+                 <div key={i} className={`w-full h-[10%] border-t border-white/30 ${i+1 <= amrLevel ? (i+1 > 7 ? 'bg-red-600' : i+1 > 4 ? 'bg-orange-500' : 'bg-green-500') : 'bg-transparent'}`}></div>
+               ))}
+            </div>
+            <div className="mt-2 text-2xl font-bold text-slate-800">{amrLevel} / {MAX_AMR}</div>
+            <p className="text-xs text-center text-slate-500 mt-1">Reaching 10 causes immediate loss.</p>
+          </div>
+
+          {phase === 'resolve_event' && (
+             <div className="p-4 bg-red-100 border-2 border-red-400 rounded-lg shadow-lg animate-pulse shrink-0">
+               <h4 className="font-bold text-red-800 flex items-center gap-2"><AlertTriangle size={16}/> Global Event!</h4>
+               <p className="font-bold text-lg mt-1">{currentEvent.title}</p>
+               <p className="text-sm mt-1">{currentEvent.desc}</p>
+               <button onClick={resolveEvent} className="mt-3 w-full py-2 bg-red-600 text-white rounded font-bold hover:bg-red-700">
+                 Resolve
+               </button>
+             </div>
+          )}
+
+        </aside>
+
+        {/* Center: The Gut Board */}
+        <main className="flex-1 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] relative p-8 flex items-center justify-center overflow-y-auto">
+          <div className="grid grid-cols-3 gap-8 max-w-3xl w-full">
+            {zones.map((zone, idx) => {
+               const total = zone.goodTokens + zone.badTokens;
+               const isFull = total >= ZONE_CAPACITY;
+               let borderColor = "border-amber-300";
+               if (isFull) {
+                 if (zone.goodTokens > zone.badTokens) borderColor = "border-blue-500 ring-4 ring-blue-200";
+                 else if (zone.badTokens > zone.goodTokens) borderColor = "border-red-500 ring-4 ring-red-200";
+                 else borderColor = "border-gray-500";
+               }
+
+               return (
+                 <div 
+                   key={zone.id}
+                   onClick={() => handleZoneClick(zone.id)}
+                   className={`
+                     relative h-32 bg-white rounded-2xl shadow-md border-4 ${borderColor}
+                     flex flex-col items-center justify-center transition-all
+                     ${selectedCard ? 'cursor-pointer hover:scale-105 hover:bg-amber-50' : ''}
+                   `}
+                 >
+                   <div className="absolute top-2 left-3 text-xs font-bold text-slate-400 uppercase tracking-widest pointer-events-none">{zone.name}</div>
+                   <div className="flex gap-1 flex-wrap justify-center max-w-[80%] pointer-events-none">
+                     {renderTokens(zone.goodTokens, zone.badTokens)}
+                   </div>
+                   {isFull && <div className="absolute bottom-1 right-2 text-[10px] text-slate-400 font-bold uppercase pointer-events-none">Locked</div>}
+                 </div>
+               );
+            })}
+          </div>
+        </main>
+      </div>
+
+      {/* Bottom: Player Hand */}
+      <footer className={`h-48 border-t-4 transition-colors p-4 flex items-center gap-4 overflow-x-auto ${turn === 'good' ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-200'} shrink-0`}>
+        <div className="flex flex-col justify-center mr-4 min-w-[100px]">
+          <h3 className="font-bold text-xl">{turn === 'good' ? 'Good Team' : 'Bad Team'}</h3>
+          <p className="text-sm opacity-70">
+            {phase === 'roll' ? 'Waiting for Roll...' : 'Pick a card to play'}
+          </p>
+        </div>
+
+        <div className="flex gap-4 px-4 items-center">
+           {(turn === 'good' ? goodHand : badHand).map(card => (
+             <div 
+               key={card.uniqueId} 
+               onClick={() => handleCardClick(card)}
+               onDragStart={(e) => e.preventDefault()} // DISABLE DRAGGING
+               draggable="false" // DISABLE DRAGGING
+               className={getCardStyle(card, turn)}
+             >
+                <div className="absolute top-1 right-1 pointer-events-none">
+                   {card.type === 'antibiotic' ? <Skull size={14} className="text-purple-500"/> : <Shield size={14} className="text-gray-400"/>}
+                </div>
+                
+                <div className="h-16 w-full bg-slate-200 rounded mb-2 flex items-center justify-center text-2xl pointer-events-none">
+                  {card.effect.includes('good') ? '🛡️' : card.effect.includes('bad') ? '🦠' : '💊'}
+                </div>
+                <div className="font-bold leading-tight mb-1 pointer-events-none">{card.title}</div>
+                <div className="text-[10px] text-slate-500 leading-tight pointer-events-none">{card.desc}</div>
+                {card.amrCost && (
+                  <div className="absolute bottom-1 right-1 bg-red-100 text-red-800 text-[9px] px-1 rounded font-bold pointer-events-none">
+                    AMR +{card.amrCost}
+                  </div>
+                )}
+             </div>
+           ))}
+        </div>
+      </footer>
+
+    </div>
+  );
+};
+
+export default WarOfGutlands;
