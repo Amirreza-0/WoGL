@@ -1,0 +1,100 @@
+[
+  {
+    "id": "ge_farming_overuse",
+    "title": "Agricultural Antibiotic Overuse",
+    "description": "Antibiotics in livestock run off into water supplies. Remove 1 bad bacteria from a random zone, but AMR +1.",
+    "educationalFact": "70% of antibiotics sold globally are used in livestock.",
+    "effects": [{ "type": "remove_bad", "value": 1, "special": "random_zone" }]
+  },
+  {
+    "id": "ge_pandemic_scare",
+    "title": "Pandemic Panic",
+    "description": "Public fear leads to antibiotic hoarding. AMR +2.",
+    "educationalFact": "During health scares, antibiotic sales spike even though they don't work on viruses.",
+    "effects": []
+  },
+  {
+    "id": "ge_health_campaign",
+    "title": "Public Health Campaign",
+    "description": "Awareness rises! Remove 1 bad bacteria from all zones with more than 2 bad bacteria.",
+    "educationalFact": "Educational campaigns reduce inappropriate antibiotic prescriptions.",
+    "effects": [{ "type": "remove_bad", "value": 1, "special": "zones_with_2plus_bad" }]
+  },
+  {
+    "id": "ge_contaminated_water",
+    "title": "Contaminated Water Supply",
+    "description": "Bacteria spread through the water system. Add 1 bad bacteria to 3 random zones.",
+    "educationalFact": "Antibiotic-resistant bacteria spread through contaminated water.",
+    "effects": [{ "type": "add_bad", "value": 1, "special": "three_random_zones" }]
+  },
+  {
+    "id": "ge_hospital_outbreak",
+    "title": "Hospital Outbreak",
+    "description": "A resistant strain spreads. Add 2 bad bacteria to the zone with most good bacteria.",
+    "educationalFact": "Hospital-acquired infections often involve antibiotic-resistant bacteria.",
+    "effects": [{ "type": "add_bad", "value": 2, "special": "zone_most_good" }]
+  },
+  {
+    "id": "ge_new_antibiotic",
+    "title": "New Antibiotic Discovery",
+    "description": "Scientists develop a new treatment! Remove 2 bad bacteria from a random zone. No AMR increase.",
+    "educationalFact": "The last entirely new class of antibiotics was discovered in 1987.",
+    "effects": [{ "type": "remove_bad", "value": 2, "special": "random_zone" }]
+  },
+  {
+    "id": "ge_travel_season",
+    "title": "International Travel Season",
+    "description": "Tourists spread bacteria globally. Add 1 bad bacteria to 4 random zones.",
+    "educationalFact": "International travel spreads antibiotic-resistant bacteria between countries.",
+    "effects": [{ "type": "add_bad", "value": 1, "special": "four_random_zones" }]
+  },
+  {
+    "id": "ge_probiotic_breakthrough",
+    "title": "Probiotic Research Breakthrough",
+    "description": "New probiotic strains discovered! Add 2 good bacteria to the zone with fewest good bacteria.",
+    "educationalFact": "Scientists are researching probiotics to fight antibiotic-resistant infections.",
+    "effects": [{ "type": "add_good", "value": 2, "special": "zone_fewest_good" }]
+  },
+  {
+    "id": "ge_school_hygiene",
+    "title": "School Hygiene Program",
+    "description": "Children learn proper hand washing! Remove 1 bad bacteria from 2 random zones.",
+    "educationalFact": "School-based hygiene programs can reduce absenteeism by 50%.",
+    "effects": [{ "type": "remove_bad", "value": 1, "special": "two_random_zones" }]
+  },
+  {
+    "id": "ge_food_recall",
+    "title": "Contaminated Food Recall",
+    "description": "Tainted products reach consumers. Add 2 bad bacteria to 2 random zones.",
+    "educationalFact": "Food contamination causes 600 million illnesses worldwide yearly.",
+    "effects": [{ "type": "add_bad", "value": 2, "special": "two_random_zones" }]
+  },
+  {
+    "id": "ge_vaccination_drive",
+    "title": "Vaccination Drive",
+    "description": "Mass vaccination prevents infections! Add 1 good bacteria to all zones.",
+    "educationalFact": "Vaccines prevent millions of infections, reducing the need for antibiotics.",
+    "effects": [{ "type": "add_good", "value": 1, "special": "all_zones" }]
+  },
+  {
+    "id": "ge_antibiotic_awareness_week",
+    "title": "Antibiotic Awareness Week",
+    "description": "Global campaign raises awareness. AMR -1 (minimum 0).",
+    "educationalFact": "World Antibiotic Awareness Week promotes responsible antibiotic use.",
+    "effects": [{ "type": "add_good", "value": 0, "special": "reduce_amr" }]
+  },
+  {
+    "id": "ge_superbug_mutation",
+    "title": "Superbug Mutation",
+    "description": "A dangerous mutation appears! Convert 2 good bacteria to bad in random zones.",
+    "educationalFact": "Bacteria can share resistance genes between different species.",
+    "effects": [{ "type": "convert_good_to_bad", "value": 2, "special": "random_zones" }]
+  },
+  {
+    "id": "ge_clean_water_initiative",
+    "title": "Clean Water Initiative",
+    "description": "New water treatment installed! Remove all bad bacteria from one random zone.",
+    "educationalFact": "Access to clean water prevents bacterial infections effectively.",
+    "effects": [{ "type": "remove_bad", "value": 99, "special": "one_random_zone" }]
+  }
+]

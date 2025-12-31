@@ -1,0 +1,158 @@
+[
+  {
+    "id": "g_probiotic_yogurt",
+    "name": "Probiotic Yogurt",
+    "type": "behavior",
+    "deckType": "good_behavior",
+    "description": "Add 2 good bacteria to any zone.",
+    "educationalFact": "Probiotics are live microorganisms that support digestive health when consumed in adequate amounts.",
+    "effects": [{ "type": "add_good", "value": 2 }],
+    "amrCost": 0
+  },
+  {
+    "id": "g_fiber_diet",
+    "name": "High Fiber Diet",
+    "type": "behavior",
+    "deckType": "good_behavior",
+    "description": "Add 1 good bacteria to a zone.",
+    "educationalFact": "Fiber acts as a prebiotic, feeding beneficial gut bacteria and helping them multiply.",
+    "effects": [{ "type": "add_good", "value": 1 }],
+    "amrCost": 0
+  },
+  {
+    "id": "g_hand_washing",
+    "name": "Proper Hand Washing",
+    "type": "behavior",
+    "deckType": "good_behavior",
+    "description": "Remove 1 bad bacteria from a zone.",
+    "educationalFact": "Handwashing with soap can prevent 1 in 3 diarrhea-related illnesses.",
+    "effects": [{ "type": "remove_bad", "value": 1 }],
+    "amrCost": 0
+  },
+  {
+    "id": "g_targeted_antibiotic",
+    "name": "Targeted Antibiotic",
+    "type": "antibiotic",
+    "deckType": "good_behavior",
+    "description": "Remove 2 bad bacteria. AMR +1.",
+    "educationalFact": "Narrow-spectrum antibiotics target specific bacteria, reducing harm to beneficial microbes.",
+    "effects": [{ "type": "kill_bad", "value": 2 }],
+    "amrCost": 1
+  },
+  {
+    "id": "g_broad_spectrum",
+    "name": "Broad Spectrum Antibiotic",
+    "type": "antibiotic",
+    "deckType": "good_behavior",
+    "description": "Clear ALL bacteria in a zone. AMR +2.",
+    "educationalFact": "Broad-spectrum antibiotics kill many types of bacteria, including beneficial ones.",
+    "effects": [{ "type": "nuke_zone", "value": 0 }],
+    "amrCost": 2
+  },
+  {
+    "id": "g_vaccination",
+    "name": "Vaccination",
+    "type": "behavior",
+    "deckType": "good_behavior",
+    "description": "Add 1 good bacteria and remove 1 bad bacteria.",
+    "educationalFact": "Vaccines prevent infections, reducing the need for antibiotics.",
+    "effects": [
+      { "type": "remove_bad", "value": 1 },
+      { "type": "add_good", "value": 1 }
+    ],
+    "amrCost": 0
+  },
+  {
+    "id": "g_fermented_foods",
+    "name": "Fermented Foods",
+    "type": "behavior",
+    "deckType": "good_behavior",
+    "description": "Add 1 good bacteria to this zone and 1 random other zone.",
+    "educationalFact": "Foods like kimchi and kefir contain natural probiotics that support gut health.",
+    "effects": [{ "type": "add_good", "value": 1, "special": "two_zones" }],
+    "amrCost": 0
+  },
+  {
+    "id": "g_exercise",
+    "name": "Regular Exercise",
+    "type": "behavior",
+    "deckType": "good_behavior",
+    "description": "Add 2 good bacteria to a zone.",
+    "educationalFact": "Exercise increases gut microbiome diversity, linked to better overall health.",
+    "effects": [{ "type": "add_good", "value": 2 }],
+    "amrCost": 0
+  },
+  {
+    "id": "g_adequate_sleep",
+    "name": "Adequate Sleep",
+    "type": "behavior",
+    "deckType": "good_behavior",
+    "description": "Remove 2 bad bacteria from a zone.",
+    "educationalFact": "Poor sleep can reduce beneficial gut bacteria by up to 50% in just two days.",
+    "effects": [{ "type": "remove_bad", "value": 2 }],
+    "amrCost": 0
+  },
+  {
+    "id": "g_hydration",
+    "name": "Proper Hydration",
+    "type": "behavior",
+    "deckType": "good_behavior",
+    "description": "Add 1 good bacteria to a zone.",
+    "educationalFact": "Drinking water helps maintain the gut lining and supports beneficial bacteria.",
+    "effects": [{ "type": "add_good", "value": 1 }],
+    "amrCost": 0
+  },
+  {
+    "id": "g_complete_course",
+    "name": "Complete Antibiotic Course",
+    "type": "antibiotic",
+    "deckType": "good_behavior",
+    "description": "Remove 3 bad bacteria. AMR +1.",
+    "educationalFact": "Always complete your full antibiotic course to prevent resistance.",
+    "effects": [{ "type": "kill_bad", "value": 3 }],
+    "amrCost": 1
+  },
+  {
+    "id": "g_stress_reduction",
+    "name": "Stress Reduction",
+    "type": "behavior",
+    "deckType": "good_behavior",
+    "description": "Convert 1 bad bacteria to good bacteria.",
+    "educationalFact": "Chronic stress can alter gut bacteria composition.",
+    "effects": [{ "type": "convert_bad_to_good", "value": 1 }],
+    "amrCost": 0
+  },
+  {
+    "id": "g_hygiene_education",
+    "name": "Hygiene Education",
+    "type": "behavior",
+    "deckType": "good_behavior",
+    "description": "Remove 1 bad bacteria from this zone and 1 random other zone.",
+    "educationalFact": "Teaching good hygiene practices prevents infections.",
+    "effects": [{ "type": "remove_bad", "value": 1, "special": "two_zones" }],
+    "amrCost": 0
+  },
+  {
+    "id": "g_prebiotic_boost",
+    "name": "Prebiotic Boost",
+    "type": "behavior",
+    "deckType": "good_behavior",
+    "description": "Add 3 good bacteria to a zone.",
+    "educationalFact": "Prebiotics are fibers that feed good bacteria in garlic, onions, and bananas.",
+    "effects": [{ "type": "add_good", "value": 3 }],
+    "amrCost": 0
+  },
+  {
+    "id": "g_balanced_meal",
+    "name": "Balanced Meal",
+    "type": "behavior",
+    "deckType": "good_behavior",
+    "description": "Add 1 good bacteria and remove 1 bad bacteria.",
+    "educationalFact": "A balanced diet supports a healthy gut microbiome.",
+    "effects": [
+      { "type": "remove_bad", "value": 1 },
+      { "type": "add_good", "value": 1 }
+    ],
+    "amrCost": 0
+  }
+]

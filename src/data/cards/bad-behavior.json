@@ -1,0 +1,158 @@
+[
+  {
+    "id": "b_dirty_hands",
+    "name": "Dirty Hands",
+    "type": "behavior",
+    "deckType": "bad_behavior",
+    "description": "Add 2 bad bacteria to a zone.",
+    "educationalFact": "Unwashed hands can carry thousands of bacteria and spread infections.",
+    "effects": [{ "type": "add_bad", "value": 2 }],
+    "amrCost": 0
+  },
+  {
+    "id": "b_sugary_snack",
+    "name": "Sugary Snack Binge",
+    "type": "behavior",
+    "deckType": "bad_behavior",
+    "description": "Add 1 bad bacteria to a zone.",
+    "educationalFact": "Excess sugar feeds harmful bacteria and yeast in the gut.",
+    "effects": [{ "type": "add_bad", "value": 1 }],
+    "amrCost": 0
+  },
+  {
+    "id": "b_stress",
+    "name": "Chronic Stress",
+    "type": "behavior",
+    "deckType": "bad_behavior",
+    "description": "Remove 1 good bacteria from a zone.",
+    "educationalFact": "Stress hormones change the gut environment.",
+    "effects": [{ "type": "remove_good", "value": 1 }],
+    "amrCost": 0
+  },
+  {
+    "id": "b_viral_antibiotic",
+    "name": "Antibiotics for Virus",
+    "type": "antibiotic",
+    "deckType": "bad_behavior",
+    "description": "Remove 1 good bacteria. AMR +1.",
+    "educationalFact": "Antibiotics cannot kill viruses. Using them for viral infections is wasteful.",
+    "effects": [{ "type": "remove_good", "value": 1 }],
+    "amrCost": 1
+  },
+  {
+    "id": "b_superbug",
+    "name": "Superbug Outbreak",
+    "type": "behavior",
+    "deckType": "bad_behavior",
+    "description": "Convert 1 good bacteria to bad bacteria.",
+    "educationalFact": "Superbugs are bacteria that resist multiple antibiotics.",
+    "effects": [{ "type": "convert_good_to_bad", "value": 1 }],
+    "amrCost": 0
+  },
+  {
+    "id": "b_travel_sickness",
+    "name": "Travel Sickness",
+    "type": "behavior",
+    "deckType": "bad_behavior",
+    "description": "Add 3 bad bacteria to a zone.",
+    "educationalFact": "Travelers often encounter new bacteria their gut isn't prepared for.",
+    "effects": [{ "type": "add_bad", "value": 3 }],
+    "amrCost": 0
+  },
+  {
+    "id": "b_junk_food",
+    "name": "Junk Food Diet",
+    "type": "behavior",
+    "deckType": "bad_behavior",
+    "description": "Add 2 bad bacteria and remove 1 good bacteria.",
+    "educationalFact": "Processed foods lack fiber and nutrients that good bacteria need.",
+    "effects": [
+      { "type": "add_bad", "value": 2 },
+      { "type": "remove_good", "value": 1 }
+    ],
+    "amrCost": 0
+  },
+  {
+    "id": "b_self_medication",
+    "name": "Self-Medication",
+    "type": "antibiotic",
+    "deckType": "bad_behavior",
+    "description": "Remove 2 good bacteria. AMR +2.",
+    "educationalFact": "Taking antibiotics without a prescription increases resistance.",
+    "effects": [{ "type": "remove_good", "value": 2 }],
+    "amrCost": 2
+  },
+  {
+    "id": "b_skipped_dose",
+    "name": "Skipped Antibiotic Dose",
+    "type": "behavior",
+    "deckType": "bad_behavior",
+    "description": "Add 2 bad bacteria. AMR +1.",
+    "educationalFact": "Skipping doses allows bacteria to recover and develop resistance.",
+    "effects": [{ "type": "add_bad", "value": 2 }],
+    "amrCost": 1
+  },
+  {
+    "id": "b_contaminated_food",
+    "name": "Contaminated Food",
+    "type": "behavior",
+    "deckType": "bad_behavior",
+    "description": "Add 2 bad bacteria to this zone and 1 random other zone.",
+    "educationalFact": "Improperly stored food can harbor dangerous bacteria.",
+    "effects": [{ "type": "add_bad", "value": 2, "special": "two_zones" }],
+    "amrCost": 0
+  },
+  {
+    "id": "b_lack_of_sleep",
+    "name": "Sleep Deprivation",
+    "type": "behavior",
+    "deckType": "bad_behavior",
+    "description": "Remove 2 good bacteria from a zone.",
+    "educationalFact": "Just one week of poor sleep can alter your gut microbiome.",
+    "effects": [{ "type": "remove_good", "value": 2 }],
+    "amrCost": 0
+  },
+  {
+    "id": "b_alcohol_excess",
+    "name": "Excessive Alcohol",
+    "type": "behavior",
+    "deckType": "bad_behavior",
+    "description": "Remove 2 good bacteria and add 1 bad bacteria.",
+    "educationalFact": "Heavy alcohol damages the gut lining and kills beneficial bacteria.",
+    "effects": [
+      { "type": "remove_good", "value": 2 },
+      { "type": "add_bad", "value": 1 }
+    ],
+    "amrCost": 0
+  },
+  {
+    "id": "b_antibiotic_hoarding",
+    "name": "Antibiotic Hoarding",
+    "type": "behavior",
+    "deckType": "bad_behavior",
+    "description": "Add 1 bad bacteria. AMR +1.",
+    "educationalFact": "Saving leftover antibiotics leads to improper use later.",
+    "effects": [{ "type": "add_bad", "value": 1 }],
+    "amrCost": 1
+  },
+  {
+    "id": "b_sedentary_lifestyle",
+    "name": "Sedentary Lifestyle",
+    "type": "behavior",
+    "deckType": "bad_behavior",
+    "description": "Add 1 bad bacteria to this zone and 1 random other zone.",
+    "educationalFact": "Lack of exercise reduces gut microbiome diversity.",
+    "effects": [{ "type": "add_bad", "value": 1, "special": "two_zones" }],
+    "amrCost": 0
+  },
+  {
+    "id": "b_infection_spread",
+    "name": "Infection Spread",
+    "type": "behavior",
+    "deckType": "bad_behavior",
+    "description": "Add 2 bad bacteria to a zone.",
+    "educationalFact": "Infections can spread rapidly when hygiene is poor.",
+    "effects": [{ "type": "add_bad", "value": 2 }],
+    "amrCost": 0
+  }
+]
