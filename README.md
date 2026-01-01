@@ -157,6 +157,3 @@ For Steam distribution:
 4. Build with `npm run electron:build`
 5. Upload via SteamCMD
 
-## License
-
-MIT License - see LICENSE file for details
