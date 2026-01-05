@@ -23,6 +23,7 @@ export function GameOverScreen({ winner, onPlayAgain, onMainMenu }: GameOverScre
   const [showDetails, setShowDetails] = useState(false);
 
   const isGoodWinner = winner === 'good_zone_control' || winner === 'good_elimination';
+  const isDraw = winner === 'draw_turn_limit';
 
   // Generate report on mount
   useEffect(() => {
@@ -62,10 +63,16 @@ export function GameOverScreen({ winner, onPlayAgain, onMainMenu }: GameOverScre
           subtitle: 'Antibiotic resistance reached critical levels!',
           fact: 'Antibiotic resistance is one of the biggest threats to global health. Each year, over 700,000 people die from drug-resistant infections worldwide.',
         };
+      case 'draw_turn_limit':
+        return {
+          title: 'Draw!',
+          subtitle: 'Turn limit reached with no clear winner.',
+          fact: 'In real life, the battle between good and bad bacteria in your gut is an ongoing process that never truly ends - balance is always shifting!',
+        };
     }
   };
 
-  const message = getWinnerMessage();
+  const message = getWinnerMessage()!;
 
   return (
     <motion.div
@@ -73,7 +80,9 @@ export function GameOverScreen({ winner, onPlayAgain, onMainMenu }: GameOverScre
       animate={{ opacity: 1 }}
       className={clsx(
         'fixed inset-0 flex items-center justify-center z-50 p-4 overflow-y-auto',
-        isGoodWinner
+        isDraw
+          ? 'bg-gradient-to-br from-amber-100 via-amber-50 to-yellow-100'
+          : isGoodWinner
           ? 'bg-gradient-to-br from-good-100 via-good-50 to-blue-100'
           : 'bg-gradient-to-br from-bad-100 via-bad-50 to-orange-100'
       )}
@@ -91,10 +100,12 @@ export function GameOverScreen({ winner, onPlayAgain, onMainMenu }: GameOverScre
           transition={{ delay: 0.2, type: 'spring' }}
           className={clsx(
             'w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center',
-            isGoodWinner ? 'bg-good-100' : 'bg-bad-100'
+            isDraw ? 'bg-amber-100' : isGoodWinner ? 'bg-good-100' : 'bg-bad-100'
           )}
         >
-          {isGoodWinner ? (
+          {isDraw ? (
+            <Target size={40} className="text-amber-600" />
+          ) : isGoodWinner ? (
             <Trophy size={40} className="text-good-600" />
           ) : (
             <Skull size={40} className="text-bad-600" />
@@ -108,7 +119,7 @@ export function GameOverScreen({ winner, onPlayAgain, onMainMenu }: GameOverScre
           transition={{ delay: 0.3 }}
           className={clsx(
             'text-3xl sm:text-4xl font-bold mb-2',
-            isGoodWinner ? 'text-good-700' : 'text-bad-700'
+            isDraw ? 'text-amber-700' : isGoodWinner ? 'text-good-700' : 'text-bad-700'
           )}
         >
           {message.title}
@@ -274,7 +285,9 @@ export function GameOverScreen({ winner, onPlayAgain, onMainMenu }: GameOverScre
             onClick={onPlayAgain}
             className={clsx(
               'flex items-center gap-2 px-4 sm:px-6 py-3 rounded-xl font-bold text-white shadow-lg hover:shadow-xl transition-all',
-              isGoodWinner
+              isDraw
+                ? 'bg-amber-500 hover:bg-amber-600'
+                : isGoodWinner
                 ? 'bg-good-500 hover:bg-good-600'
                 : 'bg-bad-500 hover:bg-bad-600'
             )}

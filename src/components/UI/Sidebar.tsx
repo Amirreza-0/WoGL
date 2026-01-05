@@ -2,7 +2,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Dices, Thermometer, AlertTriangle, CheckCircle } from 'lucide-react';
 import clsx from 'clsx';
 import { useGameStore } from '@/store/gameStore';
-import { GAME_CONSTANTS } from '@/types/game';
 
 export function Sidebar() {
   const phase = useGameStore((state) => state.phase);
@@ -14,6 +13,7 @@ export function Sidebar() {
   const zones = useGameStore((state) => state.zones);
   const players = useGameStore((state) => state.players);
   const currentPlayerIndex = useGameStore((state) => state.currentPlayerIndex);
+  const ruleSettings = useGameStore((state) => state.ruleSettings);
 
   const currentPlayer = players[currentPlayerIndex];
   const isAITurn = currentPlayer?.isAI ?? false;
@@ -118,7 +118,7 @@ export function Sidebar() {
 
         {/* Vertical gauge */}
         <div className="w-16 h-64 bg-gray-100 rounded-full relative border-2 border-gray-300 overflow-hidden flex flex-col-reverse shadow-inner">
-          {Array.from({ length: GAME_CONSTANTS.MAX_AMR }).map((_, i) => (
+          {Array.from({ length: ruleSettings.maxAMR }).map((_, i) => (
             <motion.div
               key={i}
               initial={{ opacity: 0 }}
@@ -141,7 +141,7 @@ export function Sidebar() {
             amrLevel >= 8 ? 'text-red-600' : amrLevel >= 5 ? 'text-orange-600' : 'text-green-600'
           )}
         >
-          {amrLevel} / {GAME_CONSTANTS.MAX_AMR}
+          {amrLevel} / {ruleSettings.maxAMR}
         </motion.div>
 
         <p className="text-xs text-center text-slate-500 mt-1 max-w-[180px]">
@@ -171,7 +171,7 @@ export function Sidebar() {
           </div>
         </div>
         <p className="text-xs text-center text-slate-500 mt-2">
-          Need {GAME_CONSTANTS.WIN_ZONE_COUNT} zones to win
+          Need {ruleSettings.zoneControlCount} zones to win
         </p>
       </div>
     </aside>

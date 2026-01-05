@@ -1,8 +1,9 @@
-import type { GameState, GameSettings, GameStatistics, Achievement } from '@/types/game';
-import { DEFAULT_SETTINGS } from '@/types/game';
+import type { GameState, GameSettings, GameStatistics, Achievement, GameRuleSettings } from '@/types/game';
+import { DEFAULT_SETTINGS, DEFAULT_RULE_SETTINGS } from '@/types/game';
 
 const STORAGE_KEYS = {
   SETTINGS: 'wogl_settings',
+  RULE_SETTINGS: 'wogl_rule_settings',
   STATISTICS: 'wogl_statistics',
   ACHIEVEMENTS: 'wogl_achievements',
   SAVED_GAME: 'wogl_saved_game',
@@ -32,6 +33,32 @@ export function loadSettings(): GameSettings {
     console.error('Failed to load settings:', error);
   }
   return DEFAULT_SETTINGS;
+}
+
+/**
+ * Save game rule settings to localStorage
+ */
+export function saveRuleSettings(settings: GameRuleSettings): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.RULE_SETTINGS, JSON.stringify(settings));
+  } catch (error) {
+    console.error('Failed to save rule settings:', error);
+  }
+}
+
+/**
+ * Load game rule settings from localStorage
+ */
+export function loadRuleSettings(): GameRuleSettings {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEYS.RULE_SETTINGS);
+    if (saved) {
+      return { ...DEFAULT_RULE_SETTINGS, ...JSON.parse(saved) };
+    }
+  } catch (error) {
+    console.error('Failed to load rule settings:', error);
+  }
+  return DEFAULT_RULE_SETTINGS;
 }
 
 /**

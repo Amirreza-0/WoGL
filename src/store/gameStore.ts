@@ -18,8 +18,9 @@ import type {
   MatchReport,
   MatchStats,
   PlayerConfig,
+  GameRuleSettings,
 } from '@/types/game';
-import { GAME_CONSTANTS, ZONE_NAMES } from '@/types/game';
+import { GAME_CONSTANTS, ZONE_NAMES, DEFAULT_RULE_SETTINGS } from '@/types/game';
 import {
   GOOD_BEHAVIOR_CARDS,
   BAD_BEHAVIOR_CARDS,
@@ -37,6 +38,9 @@ interface GameStore extends GameState {
   matchStats: MatchStats;
   lastMatchReport: MatchReport | null;
 
+  // Game Rule Settings
+  ruleSettings: GameRuleSettings;
+
   // Game Actions
   initGame: (mode: GameMode, players: PlayerConfig[]) => void;
   rollDie: () => void;
@@ -50,6 +54,10 @@ interface GameStore extends GameState {
   setPhase: (phase: GamePhase) => void;
   setMessage: (message: string) => void;
   addLogEntry: (player: string, action: string, details?: string) => void;
+
+  // Rule Settings Actions
+  updateRuleSettings: (settings: Partial<GameRuleSettings>) => void;
+  resetRuleSettings: () => void;
 
   // Getters
   getCurrentPlayer: () => Player | undefined;
@@ -83,19 +91,20 @@ function createInitialMatchStats(): MatchStats {
   };
 }
 
-function getInitialState(): Omit<GameState, 'players' | 'goodDeck' | 'badDeck' | 'globalEventsDeck'> & {
+function getInitialState(ruleSettings: GameRuleSettings = DEFAULT_RULE_SETTINGS): Omit<GameState, 'players' | 'goodDeck' | 'badDeck' | 'globalEventsDeck'> & {
   players: Player[];
   goodDeck: CardInstance[];
   badDeck: CardInstance[];
   globalEventsDeck: GlobalEvent[];
   matchStats: MatchStats;
   lastMatchReport: MatchReport | null;
+  ruleSettings: GameRuleSettings;
 } {
   return {
     mode: 'local_multiplayer',
     phase: 'menu',
     zones: createInitialZones(),
-    amrLevel: 1,
+    amrLevel: ruleSettings.startingAMR,
     players: [],
     currentPlayerIndex: 0,
     goodDeck: [],
@@ -111,6 +120,7 @@ function getInitialState(): Omit<GameState, 'players' | 'goodDeck' | 'badDeck' |
     actionLog: [],
     matchStats: createInitialMatchStats(),
     lastMatchReport: null,
+    ruleSettings,
   };
 }
 
@@ -124,16 +134,16 @@ function updateZoneControl(zone: Zone): void {
   }
 }
 
-function addTokensToZone(zone: Zone, type: 'good' | 'bad', amount: number): number {
+function addTokensToZone(zone: Zone, type: 'good' | 'bad', amount: number, zoneCapacity: number): number {
   const currentOther = type === 'good' ? zone.badTokens : zone.goodTokens;
-  const maxAdd = GAME_CONSTANTS.ZONE_CAPACITY - currentOther;
+  const maxAdd = zoneCapacity - currentOther;
   const currentSame = type === 'good' ? zone.goodTokens : zone.badTokens;
   const actualAdd = Math.min(amount, maxAdd - currentSame);
 
   if (type === 'good') {
-    zone.goodTokens = Math.min(GAME_CONSTANTS.ZONE_CAPACITY - zone.badTokens, zone.goodTokens + actualAdd);
+    zone.goodTokens = Math.min(zoneCapacity - zone.badTokens, zone.goodTokens + actualAdd);
   } else {
-    zone.badTokens = Math.min(GAME_CONSTANTS.ZONE_CAPACITY - zone.goodTokens, zone.badTokens + actualAdd);
+    zone.badTokens = Math.min(zoneCapacity - zone.goodTokens, zone.badTokens + actualAdd);
   }
 
   return actualAdd;
@@ -151,9 +161,14 @@ function removeTokensFromZone(zone: Zone, type: 'good' | 'bad', amount: number):
   }
 }
 
-function checkWinConditionsInternal(state: GameState): WinCondition | null {
+function checkWinConditionsInternal(state: GameState, ruleSettings: GameRuleSettings): WinCondition | null {
+  // Check turn limit (draw)
+  if (ruleSettings.turnLimit > 0 && state.turnNumber >= ruleSettings.turnLimit) {
+    return 'draw_turn_limit';
+  }
+
   // Check AMR victory (bad bacteria win)
-  if (state.amrLevel >= GAME_CONSTANTS.MAX_AMR) {
+  if (ruleSettings.enableAMRVictory && state.amrLevel >= ruleSettings.maxAMR) {
     return 'bad_amr_victory';
   }
 
@@ -170,15 +185,15 @@ function checkWinConditionsInternal(state: GameState): WinCondition | null {
   }
 
   // Zone control victories
-  if (goodZones >= GAME_CONSTANTS.WIN_ZONE_COUNT) {
+  if (goodZones >= ruleSettings.zoneControlCount) {
     return 'good_zone_control';
   }
-  if (badZones >= GAME_CONSTANTS.WIN_ZONE_COUNT) {
+  if (badZones >= ruleSettings.zoneControlCount) {
     return 'bad_zone_control';
   }
 
   // Elimination victories (only after initial setup)
-  if (state.turnNumber > 1) {
+  if (ruleSettings.enableEliminationVictory && state.turnNumber > 1) {
     if (totalBadTokens === 0 && totalGoodTokens > 0) {
       return 'good_elimination';
     }
@@ -202,6 +217,8 @@ function getWinMessage(winner: WinCondition): string {
       return 'Bad Bacteria win! All good bacteria have been eliminated!';
     case 'bad_amr_victory':
       return 'Bad Bacteria win! Antibiotic resistance reached critical levels!';
+    case 'draw_turn_limit':
+      return 'Draw! Turn limit reached with no clear winner.';
   }
 }
 
@@ -219,11 +236,13 @@ export const useGameStore = create<GameStore>()(
 
     initGame: (mode: GameMode, playerConfigs: PlayerConfig[]) => {
       set((state) => {
+        const settings = state.ruleSettings;
+
         // Reset state
         state.mode = mode;
         state.phase = 'roll';
         state.zones = createInitialZones();
-        state.amrLevel = 1;
+        state.amrLevel = settings.startingAMR;
         state.turnNumber = 1;
         state.gameStartTime = Date.now();
         state.winner = null;
@@ -232,28 +251,26 @@ export const useGameStore = create<GameStore>()(
         state.selectedCard = null;
         state.actionLog = [];
 
-        // Create shuffled decks with multiple copies
-        const goodDeckCards = shuffleDeck([
-          ...GOOD_BEHAVIOR_CARDS,
-          ...GOOD_BEHAVIOR_CARDS,
-          ...GOOD_BEHAVIOR_CARDS,
-        ]);
-        const badDeckCards = shuffleDeck([
-          ...BAD_BEHAVIOR_CARDS,
-          ...BAD_BEHAVIOR_CARDS,
-          ...BAD_BEHAVIOR_CARDS,
-        ]);
+        // Create shuffled decks with configurable copies
+        const goodDeckCards: typeof GOOD_BEHAVIOR_CARDS = [];
+        const badDeckCards: typeof BAD_BEHAVIOR_CARDS = [];
+        for (let i = 0; i < settings.deckCopies; i++) {
+          goodDeckCards.push(...GOOD_BEHAVIOR_CARDS);
+          badDeckCards.push(...BAD_BEHAVIOR_CARDS);
+        }
+        const shuffledGoodDeck = shuffleDeck(goodDeckCards);
+        const shuffledBadDeck = shuffleDeck(badDeckCards);
         const eventsDeck = shuffleDeck([...GLOBAL_EVENTS]);
 
-        state.goodDeck = goodDeckCards.map((card, i) => createCardInstance(card, i));
-        state.badDeck = badDeckCards.map((card, i) => createCardInstance(card, i));
+        state.goodDeck = shuffledGoodDeck.map((card, i) => createCardInstance(card, i));
+        state.badDeck = shuffledBadDeck.map((card, i) => createCardInstance(card, i));
         state.globalEventsDeck = eventsDeck;
 
         // Create players with hands - alternating teams
         state.players = playerConfigs.map((config, index) => {
           const team: TeamType = index % 2 === 0 ? 'good' : 'bad';
           const deck = team === 'good' ? state.goodDeck : state.badDeck;
-          const hand = deck.splice(0, GAME_CONSTANTS.HAND_SIZE);
+          const hand = deck.splice(0, settings.handSize);
 
           return {
             id: `player-${index}`,
@@ -279,8 +296,8 @@ export const useGameStore = create<GameStore>()(
 
         // Place initial tokens in random zones
         const randomZones = shuffleDeck([0, 1, 2, 3, 4, 5, 6, 7, 8]);
-        state.zones[randomZones[0]].goodTokens = GAME_CONSTANTS.INITIAL_TOKENS;
-        state.zones[randomZones[1]].badTokens = GAME_CONSTANTS.INITIAL_TOKENS;
+        state.zones[randomZones[0]].goodTokens = settings.initialTokensPerTeam;
+        state.zones[randomZones[1]].badTokens = settings.initialTokensPerTeam;
 
         // Update control for initial zones
         updateZoneControl(state.zones[randomZones[0]]);
@@ -306,12 +323,16 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         if (state.phase !== 'roll') return;
 
-        const roll = Math.floor(Math.random() * GAME_CONSTANTS.DIE_SIDES) + 1;
+        const settings = state.ruleSettings;
+        const roll = Math.floor(Math.random() * settings.dieSides) + 1;
         state.currentDieRoll = roll;
 
         const currentPlayer = state.players[state.currentPlayerIndex];
 
-        if (roll >= GAME_CONSTANTS.GLOBAL_EVENT_THRESHOLD) {
+        // Check if global events are enabled and roll meets threshold
+        const eventTriggered = settings.enableGlobalEvents && roll >= settings.globalEventThreshold;
+
+        if (eventTriggered) {
           // Trigger global event
           if (state.globalEventsDeck.length > 0) {
             state.currentEvent = state.globalEventsDeck.shift()!;
@@ -344,6 +365,7 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         if (state.phase !== 'resolve_event' || !state.currentEvent) return;
 
+        const settings = state.ruleSettings;
         const event = state.currentEvent;
 
         // Track global event
@@ -351,7 +373,7 @@ export const useGameStore = create<GameStore>()(
 
         // Apply event effects
         for (const effect of event.effects) {
-          applyEventEffect(state, effect, event);
+          applyEventEffect(state, effect, event, settings);
         }
 
         state.actionLog.push({
@@ -366,7 +388,7 @@ export const useGameStore = create<GameStore>()(
         state.message = 'Event resolved. Select a card to play.';
 
         // Check for AMR victory
-        if (state.amrLevel >= GAME_CONSTANTS.MAX_AMR) {
+        if (settings.enableAMRVictory && state.amrLevel >= settings.maxAMR) {
           state.winner = 'bad_amr_victory';
           state.phase = 'game_over';
           state.message = 'Bad Bacteria win! AMR reached critical level!';
@@ -394,6 +416,7 @@ export const useGameStore = create<GameStore>()(
     playCard: (zoneId: number, card?: CardInstance) => {
       // 1. GET CURRENT STATE (Read-only) to validate
       const state = get();
+      const settings = state.ruleSettings;
       const cardToPlay = card || state.selectedCard;
       const zone = state.zones[zoneId];
 
@@ -405,7 +428,7 @@ export const useGameStore = create<GameStore>()(
       const totalTokens = zone.goodTokens + zone.badTokens;
 
       // Check Capacity
-      if (totalTokens >= GAME_CONSTANTS.ZONE_CAPACITY && cardToPlay.type !== 'antibiotic') {
+      if (totalTokens >= settings.zoneCapacity && cardToPlay.type !== 'antibiotic') {
         get().setMessage('Zone is full! Only antibiotics can affect full zones.');
         return; // Abort
       }
@@ -428,6 +451,7 @@ export const useGameStore = create<GameStore>()(
 
       // 3. EXECUTION (Mutate state)
       set((draft) => {
+        const draftSettings = draft.ruleSettings;
         // Need to grab the zone from the DRAFT to mutate it
         const draftZone = draft.zones[zoneId];
         const currentPlayer = draft.players[draft.currentPlayerIndex];
@@ -443,11 +467,11 @@ export const useGameStore = create<GameStore>()(
         draft.matchStats.totalCardsPlayed++;
 
         // Apply Effects
-        applyCardEffects(draft, cardToPlay, draftZone);
+        applyCardEffects(draft, cardToPlay, draftZone, draftSettings);
 
         // Apply AMR Cost
         if (cardToPlay.amrCost > 0) {
-          draft.amrLevel = Math.min(GAME_CONSTANTS.MAX_AMR, draft.amrLevel + cardToPlay.amrCost);
+          draft.amrLevel = Math.min(draftSettings.maxAMR, draft.amrLevel + cardToPlay.amrCost);
           if (draft.amrLevel > draft.matchStats.highestAMRReached) {
             draft.matchStats.highestAMRReached = draft.amrLevel;
           }
@@ -482,7 +506,7 @@ export const useGameStore = create<GameStore>()(
         draft.selectedCard = null;
 
         // Check Winner
-        const winner = checkWinConditionsInternal(draft);
+        const winner = checkWinConditionsInternal(draft, draftSettings);
         if (winner) {
           draft.winner = winner;
           draft.phase = 'game_over';
@@ -506,6 +530,16 @@ export const useGameStore = create<GameStore>()(
           state.turnNumber++;
         }
         state.currentDieRoll = null;
+
+        // Check turn limit before continuing
+        const settings = state.ruleSettings;
+        if (settings.turnLimit > 0 && state.turnNumber > settings.turnLimit) {
+          state.winner = 'draw_turn_limit';
+          state.phase = 'game_over';
+          state.message = getWinMessage('draw_turn_limit');
+          return;
+        }
+
         state.phase = 'roll';
         const nextPlayer = state.players[state.currentPlayerIndex];
         state.message = `${nextPlayer.name}'s turn (${nextPlayer.team === 'good' ? 'Good Bacteria' : 'Bad Bacteria'}). Roll the die!`;
@@ -531,7 +565,11 @@ export const useGameStore = create<GameStore>()(
     // ========================================
 
     resetGame: () => {
-      set(getInitialState());
+      set((state) => {
+        // Preserve ruleSettings when resetting
+        const currentSettings = state.ruleSettings;
+        return getInitialState(currentSettings);
+      });
     },
 
     setPhase: (phase: GamePhase) => {
@@ -581,7 +619,7 @@ export const useGameStore = create<GameStore>()(
       const totalTokens = zone.goodTokens + zone.badTokens;
 
       // Full zones can only be affected by antibiotics
-      if (totalTokens >= GAME_CONSTANTS.ZONE_CAPACITY && card.type !== 'antibiotic') {
+      if (totalTokens >= state.ruleSettings.zoneCapacity && card.type !== 'antibiotic') {
         return false;
       }
 
@@ -597,8 +635,28 @@ export const useGameStore = create<GameStore>()(
 
     checkWinConditions: () => {
       const state = get();
-      return checkWinConditionsInternal(state);
+      return checkWinConditionsInternal(state, state.ruleSettings);
     },
+
+    // ========================================
+    // RULE SETTINGS
+    // ========================================
+
+    updateRuleSettings: (newSettings: Partial<GameRuleSettings>) => {
+      set((state) => {
+        state.ruleSettings = { ...state.ruleSettings, ...newSettings };
+      });
+    },
+
+    resetRuleSettings: () => {
+      set((state) => {
+        state.ruleSettings = { ...DEFAULT_RULE_SETTINGS };
+      });
+    },
+
+    // ========================================
+    // MATCH REPORT
+    // ========================================
 
     generateMatchReport: (): MatchReport | null => {
       const state = get();
@@ -623,8 +681,10 @@ export const useGameStore = create<GameStore>()(
       }
 
       // Determine winning team
-      const winningTeam: TeamType =
-        state.winner === 'good_zone_control' || state.winner === 'good_elimination'
+      const winningTeam: TeamType | null =
+        state.winner === 'draw_turn_limit'
+          ? null
+          : state.winner === 'good_zone_control' || state.winner === 'good_elimination'
           ? 'good'
           : 'bad';
 
@@ -685,7 +745,8 @@ export const useGameStore = create<GameStore>()(
 function applyCardEffects(
   state: GameState & { matchStats: MatchStats },
   card: CardInstance,
-  zone: Zone
+  zone: Zone,
+  settings: GameRuleSettings
 ): void {
   for (const effect of card.effects) {
     // Handle special multi-zone effects
@@ -693,9 +754,9 @@ function applyCardEffects(
       const otherZones = state.zones.filter((z) => z.id !== zone.id);
       const randomOther = otherZones[Math.floor(Math.random() * otherZones.length)];
 
-      applyEffectToZone(state, effect, zone);
+      applyEffectToZone(state, effect, zone, settings);
       if (randomOther) {
-        applyEffectToZone(state, effect, randomOther);
+        applyEffectToZone(state, effect, randomOther, settings);
       }
       continue;
     }
@@ -716,21 +777,22 @@ function applyCardEffects(
     }
 
     // Standard single-zone effects
-    applyEffectToZone(state, effect, zone);
+    applyEffectToZone(state, effect, zone, settings);
   }
 }
 
 function applyEffectToZone(
   state: GameState & { matchStats: MatchStats },
   effect: { type: string; value: number; amrChange?: number },
-  zone: Zone
+  zone: Zone,
+  settings: GameRuleSettings
 ): void {
   switch (effect.type) {
     case 'add_good':
-      addTokensToZone(zone, 'good', effect.value);
+      addTokensToZone(zone, 'good', effect.value, settings.zoneCapacity);
       break;
     case 'add_bad':
-      addTokensToZone(zone, 'bad', effect.value);
+      addTokensToZone(zone, 'bad', effect.value, settings.zoneCapacity);
       break;
     case 'remove_good':
       removeTokensFromZone(zone, 'good', effect.value);
@@ -741,20 +803,20 @@ function applyEffectToZone(
     case 'kill_bad':
       removeTokensFromZone(zone, 'bad', effect.value);
       if (effect.amrChange) {
-        state.amrLevel = Math.min(GAME_CONSTANTS.MAX_AMR, state.amrLevel + effect.amrChange);
+        state.amrLevel = Math.min(settings.maxAMR, state.amrLevel + effect.amrChange);
       }
       break;
     case 'kill_good':
       removeTokensFromZone(zone, 'good', effect.value);
       if (effect.amrChange) {
-        state.amrLevel = Math.min(GAME_CONSTANTS.MAX_AMR, state.amrLevel + effect.amrChange);
+        state.amrLevel = Math.min(settings.maxAMR, state.amrLevel + effect.amrChange);
       }
       break;
     case 'nuke_zone':
       zone.goodTokens = 0;
       zone.badTokens = 0;
       if (effect.amrChange) {
-        state.amrLevel = Math.min(GAME_CONSTANTS.MAX_AMR, state.amrLevel + effect.amrChange);
+        state.amrLevel = Math.min(settings.maxAMR, state.amrLevel + effect.amrChange);
       }
       break;
     case 'convert_good_to_bad':
@@ -762,7 +824,7 @@ function applyEffectToZone(
         const convertAmount = Math.min(effect.value, zone.goodTokens);
         zone.goodTokens -= convertAmount;
         zone.badTokens = Math.min(
-          GAME_CONSTANTS.ZONE_CAPACITY - zone.goodTokens,
+          settings.zoneCapacity - zone.goodTokens,
           zone.badTokens + convertAmount
         );
       }
@@ -772,7 +834,7 @@ function applyEffectToZone(
         const convertAmount = Math.min(effect.value, zone.badTokens);
         zone.badTokens -= convertAmount;
         zone.goodTokens = Math.min(
-          GAME_CONSTANTS.ZONE_CAPACITY - zone.badTokens,
+          settings.zoneCapacity - zone.badTokens,
           zone.goodTokens + convertAmount
         );
       }
@@ -791,7 +853,8 @@ function applyEffectToZone(
 function applyEventEffect(
   state: GameState & { matchStats: MatchStats },
   effect: { type: string; value: number; special?: string; amrChange?: number },
-  event: GlobalEvent
+  event: GlobalEvent,
+  settings: GameRuleSettings
 ): void {
   switch (effect.special) {
     case 'random_zone': {
@@ -800,7 +863,7 @@ function applyEventEffect(
         const randomZone = zonesWithBad[Math.floor(Math.random() * zonesWithBad.length)];
         randomZone.badTokens = Math.max(0, randomZone.badTokens - effect.value);
       }
-      state.amrLevel = Math.min(GAME_CONSTANTS.MAX_AMR, state.amrLevel + 1);
+      state.amrLevel = Math.min(settings.maxAMR, state.amrLevel + 1);
       break;
     }
     case 'zones_with_2plus_bad': {
@@ -815,11 +878,11 @@ function applyEventEffect(
     case 'four_random_zones': {
       const count = effect.special === 'three_random_zones' ? 3 : 4;
       const availableZones = state.zones.filter(
-        (z) => z.goodTokens + z.badTokens < GAME_CONSTANTS.ZONE_CAPACITY
+        (z) => z.goodTokens + z.badTokens < settings.zoneCapacity
       );
       const shuffledZones = shuffleDeck(availableZones);
       for (let i = 0; i < Math.min(count, shuffledZones.length); i++) {
-        addTokensToZone(shuffledZones[i], 'bad', effect.value);
+        addTokensToZone(shuffledZones[i], 'bad', effect.value, settings.zoneCapacity);
       }
       break;
     }
@@ -830,7 +893,7 @@ function applyEventEffect(
         if (effect.type === 'remove_bad') {
           shuffledZones[i].badTokens = Math.max(0, shuffledZones[i].badTokens - effect.value);
         } else if (effect.type === 'add_bad') {
-          addTokensToZone(shuffledZones[i], 'bad', effect.value);
+          addTokensToZone(shuffledZones[i], 'bad', effect.value, settings.zoneCapacity);
         }
       }
       break;
@@ -839,7 +902,7 @@ function applyEventEffect(
       const maxGood = Math.max(...state.zones.map((z) => z.goodTokens));
       const zone = state.zones.find((z) => z.goodTokens === maxGood);
       if (zone) {
-        addTokensToZone(zone, 'bad', effect.value);
+        addTokensToZone(zone, 'bad', effect.value, settings.zoneCapacity);
       }
       break;
     }
@@ -847,13 +910,13 @@ function applyEventEffect(
       const minGood = Math.min(...state.zones.map((z) => z.goodTokens));
       const zone = state.zones.find((z) => z.goodTokens === minGood);
       if (zone) {
-        addTokensToZone(zone, 'good', effect.value);
+        addTokensToZone(zone, 'good', effect.value, settings.zoneCapacity);
       }
       break;
     }
     case 'all_zones': {
       state.zones.forEach((zone) => {
-        if (zone.goodTokens + zone.badTokens < GAME_CONSTANTS.ZONE_CAPACITY) {
+        if (zone.goodTokens + zone.badTokens < settings.zoneCapacity) {
           zone.goodTokens++;
         }
       });
@@ -877,7 +940,7 @@ function applyEventEffect(
       for (let i = 0; i < Math.min(effect.value, shuffledZones.length); i++) {
         if (shuffledZones[i].goodTokens > 0) {
           shuffledZones[i].goodTokens--;
-          addTokensToZone(shuffledZones[i], 'bad', 1);
+          addTokensToZone(shuffledZones[i], 'bad', 1, settings.zoneCapacity);
         }
       }
       break;
@@ -885,7 +948,7 @@ function applyEventEffect(
     default: {
       // Handle pandemic event (AMR +2)
       if (event.id === 'ge_pandemic_scare') {
-        state.amrLevel = Math.min(GAME_CONSTANTS.MAX_AMR, state.amrLevel + 2);
+        state.amrLevel = Math.min(settings.maxAMR, state.amrLevel + 2);
       }
     }
   }

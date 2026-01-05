@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import type { Zone as ZoneType } from '@/types/game';
-import { GAME_CONSTANTS } from '@/types/game';
 import { useGameStore } from '@/store/gameStore';
 import goodBacteriaToken from '@/assets/images/tokens/good-bacteria.png';
 import badBacteriaToken from '@/assets/images/tokens/bad-bacteria.png';
@@ -16,6 +15,7 @@ export function Zone({ zone, isSelectable }: ZoneProps) {
   const playCard = useGameStore((state) => state.playCard);
   const players = useGameStore((state) => state.players);
   const currentPlayerIndex = useGameStore((state) => state.currentPlayerIndex);
+  const zoneCapacity = useGameStore((state) => state.ruleSettings.zoneCapacity);
 
   const currentPlayer = players[currentPlayerIndex];
   const isHumanTurn = currentPlayer && !currentPlayer.isAI;
@@ -28,7 +28,7 @@ export function Zone({ zone, isSelectable }: ZoneProps) {
   };
 
   const totalTokens = zone.goodTokens + zone.badTokens;
-  const isFull = totalTokens >= GAME_CONSTANTS.ZONE_CAPACITY;
+  const isFull = totalTokens >= zoneCapacity;
 
   const getControlClass = () => {
     if (zone.goodTokens > zone.badTokens) {
@@ -74,7 +74,7 @@ export function Zone({ zone, isSelectable }: ZoneProps) {
     }
 
     // Empty slots
-    const emptySlots = GAME_CONSTANTS.ZONE_CAPACITY - totalTokens;
+    const emptySlots = zoneCapacity - totalTokens;
     for (let i = 0; i < emptySlots; i++) {
       tokens.push(
         <div

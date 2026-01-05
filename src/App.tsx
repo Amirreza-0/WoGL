@@ -1,10 +1,12 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { MainMenu } from '@/components/UI/MainMenu';
 import { PlayerSetup } from '@/components/UI/PlayerSetup';
 import { Game } from '@/components/Game/Game';
 import { Tutorial, useTutorial } from '@/components/Game/Tutorial';
-import type { GameMode, PlayerConfig } from '@/types/game';
+import { GameRuleSettings } from '@/components/UI/GameRuleSettings';
+import { loadRuleSettings, saveRuleSettings } from '@/utils/storage';
+import type { GameMode, PlayerConfig, GameRuleSettings as GameRuleSettingsType } from '@/types/game';
 
 type AppScreen = 'menu' | 'setup' | 'game' | 'tutorial' | 'settings' | 'about';
 
@@ -13,8 +15,22 @@ export default function App() {
   const [gameMode, setGameMode] = useState<GameMode>('local_multiplayer');
   const initGame = useGameStore((state) => state.initGame);
   const resetGame = useGameStore((state) => state.resetGame);
+  const ruleSettings = useGameStore((state) => state.ruleSettings);
+  const updateRuleSettings = useGameStore((state) => state.updateRuleSettings);
+  const resetRuleSettings = useGameStore((state) => state.resetRuleSettings);
 
   const { showTutorial, startTutorial, completeTutorial, skipTutorial } = useTutorial();
+
+  // Load rule settings from localStorage on mount
+  useEffect(() => {
+    const savedSettings = loadRuleSettings();
+    updateRuleSettings(savedSettings);
+  }, [updateRuleSettings]);
+
+  // Save rule settings to localStorage whenever they change
+  useEffect(() => {
+    saveRuleSettings(ruleSettings);
+  }, [ruleSettings]);
 
   // Screen navigation handlers
   const handleStartLocal = useCallback(() => {
@@ -38,9 +54,20 @@ export default function App() {
   }, [initGame, startTutorial]);
 
   const handleOpenSettings = useCallback(() => {
-    // Settings modal or screen
-    console.log('Settings coming soon!');
+    setScreen('settings');
   }, []);
+
+  const handleSettingsBack = useCallback(() => {
+    setScreen('menu');
+  }, []);
+
+  const handleUpdateRuleSettings = useCallback((updates: Partial<GameRuleSettingsType>) => {
+    updateRuleSettings(updates);
+  }, [updateRuleSettings]);
+
+  const handleResetRuleSettings = useCallback(() => {
+    resetRuleSettings();
+  }, [resetRuleSettings]);
 
   const handleOpenAbout = useCallback(() => {
     console.log(
@@ -117,6 +144,16 @@ export default function App() {
           <Game onMainMenu={handleMainMenu} />
           {renderTutorial()}
         </>
+      );
+
+    case 'settings':
+      return (
+        <GameRuleSettings
+          settings={ruleSettings}
+          onUpdate={handleUpdateRuleSettings}
+          onReset={handleResetRuleSettings}
+          onBack={handleSettingsBack}
+        />
       );
 
     default:

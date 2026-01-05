@@ -55,7 +55,8 @@ export type WinCondition =
   | 'good_elimination'
   | 'bad_zone_control'
   | 'bad_elimination'
-  | 'bad_amr_victory';
+  | 'bad_amr_victory'
+  | 'draw_turn_limit';
 
 // ============================================
 // CARD SYSTEM
@@ -186,7 +187,7 @@ export interface MatchReport {
   duration: number;
   players: MatchReportPlayer[];
   winner: WinCondition;
-  winningTeam: TeamType;
+  winningTeam: TeamType | null;  // null for draw
   totalTurns: number;
   finalZoneControl: {
     good: number;
@@ -250,6 +251,74 @@ export const DEFAULT_SETTINGS: GameSettings = {
 };
 
 // ============================================
+// GAME RULE SETTINGS
+// ============================================
+
+export interface GameRuleSettings {
+  // Winning Conditions
+  zoneControlCount: number;        // Zones needed for zone control victory (1-9)
+  enableEliminationVictory: boolean; // Win by eliminating all opponent tokens
+  enableAMRVictory: boolean;       // Bad team can win at max AMR level
+
+  // Zone Settings
+  zoneCapacity: number;            // Max tokens (good + bad) per zone (1-10)
+  initialTokensPerTeam: number;    // Starting tokens for each team (0-5)
+
+  // AMR Settings
+  maxAMR: number;                  // Maximum AMR level (5-20)
+  startingAMR: number;             // Initial AMR level at game start (0-maxAMR)
+
+  // Deck & Hand Settings
+  handSize: number;                // Cards per player (1-5)
+  deckCopies: number;              // Copies of each card in deck (1-5)
+
+  // Event Settings
+  globalEventThreshold: number;    // Roll value to trigger event (1-dieSides)
+  enableGlobalEvents: boolean;     // Whether global events can occur
+
+  // Turn Settings
+  turnLimit: number;               // Max turns before draw (0 = unlimited)
+
+  // Die Settings
+  dieSides: number;                // Number of sides on the die (6-20)
+
+  // AI Settings
+  aiThinkingDelay: number;         // AI thinking delay in milliseconds (0-3000)
+}
+
+export const DEFAULT_RULE_SETTINGS: GameRuleSettings = {
+  // Winning Conditions
+  zoneControlCount: 5,
+  enableEliminationVictory: true,
+  enableAMRVictory: true,
+
+  // Zone Settings
+  zoneCapacity: 5,
+  initialTokensPerTeam: 2,
+
+  // AMR Settings
+  maxAMR: 10,
+  startingAMR: 0,
+
+  // Deck & Hand Settings
+  handSize: 3,
+  deckCopies: 3,
+
+  // Event Settings
+  globalEventThreshold: 15,
+  enableGlobalEvents: true,
+
+  // Turn Settings
+  turnLimit: 0,
+
+  // Die Settings
+  dieSides: 20,
+
+  // AI Settings
+  aiThinkingDelay: 800,
+};
+
+// ============================================
 // GAME STATE
 // ============================================
 
@@ -289,17 +358,25 @@ export interface GameState {
 // GAME CONSTANTS
 // ============================================
 
+// Static constants that don't change
 export const GAME_CONSTANTS = {
-  ZONE_COUNT: 9,
-  ZONE_CAPACITY: 5,
-  WIN_ZONE_COUNT: 5,
-  MAX_AMR: 10,
-  HAND_SIZE: 3,
-  GLOBAL_EVENT_THRESHOLD: 15,
-  DIE_SIDES: 20,
-  INITIAL_TOKENS: 2,
-  DECK_COPIES: 3,
+  ZONE_COUNT: 9,  // Fixed: always 9 zones (digestive system)
 } as const;
+
+// Helper to create runtime constants from settings
+export function getRuntimeConstants(settings: GameRuleSettings) {
+  return {
+    ZONE_COUNT: GAME_CONSTANTS.ZONE_COUNT,
+    ZONE_CAPACITY: settings.zoneCapacity,
+    WIN_ZONE_COUNT: settings.zoneControlCount,
+    MAX_AMR: settings.maxAMR,
+    HAND_SIZE: settings.handSize,
+    GLOBAL_EVENT_THRESHOLD: settings.globalEventThreshold,
+    DIE_SIDES: settings.dieSides,
+    INITIAL_TOKENS: settings.initialTokensPerTeam,
+    DECK_COPIES: settings.deckCopies,
+  };
+}
 
 // ============================================
 // ZONE NAMES

@@ -1,5 +1,10 @@
-import type { GameState, CardInstance, Zone, AIDifficulty, TeamType } from '@/types/game';
-import { GAME_CONSTANTS } from '@/types/game';
+import type { GameState, CardInstance, Zone, AIDifficulty, TeamType, GameRuleSettings } from '@/types/game';
+import { DEFAULT_RULE_SETTINGS } from '@/types/game';
+
+// Interface for game state with rule settings included (from store)
+interface GameStateWithSettings extends GameState {
+  ruleSettings: GameRuleSettings;
+}
 
 // ============================================
 // TYPES
@@ -57,15 +62,16 @@ export class AIPlayer {
   /**
    * Make a decision about which card to play and where
    */
-  makeDecision(state: GameState, playerIndex: number): AIDecision | null {
+  makeDecision(state: GameStateWithSettings, playerIndex: number): AIDecision | null {
     const player = state.players[playerIndex];
     if (!player || player.hand.length === 0) {
       return null;
     }
 
+    const settings = state.ruleSettings || DEFAULT_RULE_SETTINGS;
     const isGoodTeam = player.team === 'good';
-    const analysis = this.analyzeBoard(state);
-    const scoredPlays = this.getAllScoredPlays(state, player.hand, isGoodTeam, analysis);
+    const analysis = this.analyzeBoard(state, settings);
+    const scoredPlays = this.getAllScoredPlays(state, player.hand, isGoodTeam, analysis, settings);
 
     if (scoredPlays.length === 0) {
       return null;
@@ -89,7 +95,7 @@ export class AIPlayer {
   /**
    * Analyze the current board state
    */
-  private analyzeBoard(state: GameState): BoardAnalysis {
+  private analyzeBoard(state: GameState, settings: GameRuleSettings): BoardAnalysis {
     let goodZoneCount = 0;
     let badZoneCount = 0;
     let neutralZoneCount = 0;
@@ -112,7 +118,7 @@ export class AIPlayer {
       }
 
       const totalTokens = zone.goodTokens + zone.badTokens;
-      const availableSpace = GAME_CONSTANTS.ZONE_CAPACITY - totalTokens;
+      const availableSpace = settings.zoneCapacity - totalTokens;
       const diff = Math.abs(zone.goodTokens - zone.badTokens);
       const flipPotential = diff === 0 ? 1 : 1 / (diff + 1);
 
@@ -132,9 +138,9 @@ export class AIPlayer {
       };
     });
 
-    const winProximityGood = goodZoneCount / GAME_CONSTANTS.WIN_ZONE_COUNT;
-    const winProximityBad = badZoneCount / GAME_CONSTANTS.WIN_ZONE_COUNT;
-    const amrThreat = state.amrLevel / GAME_CONSTANTS.MAX_AMR;
+    const winProximityGood = goodZoneCount / settings.zoneControlCount;
+    const winProximityBad = badZoneCount / settings.zoneControlCount;
+    const amrThreat = state.amrLevel / settings.maxAMR;
 
     let gamePhase: BoardAnalysis['gamePhase'] = 'early';
     if (state.turnNumber > 15 || winProximityGood >= 0.8 || winProximityBad >= 0.8) {
@@ -166,13 +172,14 @@ export class AIPlayer {
     state: GameState,
     hand: CardInstance[],
     isGoodTeam: boolean,
-    analysis: BoardAnalysis
+    analysis: BoardAnalysis,
+    settings: GameRuleSettings
   ): ScoredPlay[] {
     const plays: ScoredPlay[] = [];
 
     for (const card of hand) {
       for (const zone of state.zones) {
-        if (this.canPlayCard(card, zone)) {
+        if (this.canPlayCard(card, zone, settings)) {
           const zoneAnalysis = analysis.zones[zone.id];
           const score = this.evaluatePlay(card, zoneAnalysis, analysis, isGoodTeam);
           const reasoning = this.generateReasoning(card, zoneAnalysis, score, isGoodTeam, analysis);
@@ -187,10 +194,10 @@ export class AIPlayer {
   /**
    * Check if a card can be played on a zone
    */
-  private canPlayCard(card: CardInstance, zone: Zone): boolean {
+  private canPlayCard(card: CardInstance, zone: Zone, settings: GameRuleSettings): boolean {
     const totalTokens = zone.goodTokens + zone.badTokens;
 
-    if (totalTokens >= GAME_CONSTANTS.ZONE_CAPACITY && card.type !== 'antibiotic') {
+    if (totalTokens >= settings.zoneCapacity && card.type !== 'antibiotic') {
       return false;
     }
 
@@ -479,7 +486,7 @@ export interface AITurnCallbacks {
  * Process an AI turn with proper timing
  */
 export function processAITurn(
-  state: GameState,
+  state: GameStateWithSettings,
   playerIndex: number,
   callbacks: AITurnCallbacks
 ): void {
@@ -487,18 +494,23 @@ export function processAITurn(
   if (!player || !player.isAI) return;
 
   const ai = new AIPlayer(player.aiDifficulty || 'medium');
+  const settings = state.ruleSettings || DEFAULT_RULE_SETTINGS;
 
-  const baseDelay = 800;
-  const randomDelay = () => baseDelay + Math.random() * 600;
+  // Use configurable base delay with some randomness
+  const baseDelay = settings.aiThinkingDelay;
+  const randomVariance = Math.min(baseDelay * 0.75, 600); // Up to 75% variance or 600ms max
+  const randomDelay = () => baseDelay + Math.random() * randomVariance;
 
   if (state.phase === 'roll') {
     setTimeout(() => {
       callbacks.onRoll();
     }, randomDelay());
   } else if (state.phase === 'resolve_event') {
+    // Event resolution takes a bit longer for dramatic effect
+    const eventDelay = baseDelay * 1.5 + Math.random() * randomVariance;
     setTimeout(() => {
       callbacks.onResolveEvent();
-    }, 1200 + Math.random() * 800);
+    }, eventDelay);
   } else if (state.phase === 'action') {
     const decision = ai.makeDecision(state, playerIndex);
 
@@ -506,9 +518,11 @@ export function processAITurn(
       setTimeout(() => {
         callbacks.onSelectCard(decision.card);
 
+        // Card play delay is proportional to thinking delay
+        const playDelay = Math.max(200, baseDelay * 0.75) + Math.random() * (randomVariance * 0.5);
         setTimeout(() => {
           callbacks.onPlayCard(decision.targetZoneId);
-        }, 600 + Math.random() * 400);
+        }, playDelay);
       }, randomDelay());
     }
   }
