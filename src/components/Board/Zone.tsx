@@ -3,6 +3,8 @@ import clsx from 'clsx';
 import type { Zone as ZoneType } from '@/types/game';
 import { GAME_CONSTANTS } from '@/types/game';
 import { useGameStore } from '@/store/gameStore';
+import goodBacteriaToken from '@/assets/images/tokens/good-bacteria.png';
+import badBacteriaToken from '@/assets/images/tokens/bad-bacteria.png';
 
 interface ZoneProps {
   zone: ZoneType;
@@ -41,29 +43,33 @@ export function Zone({ zone, isSelectable }: ZoneProps) {
   const renderTokens = () => {
     const tokens = [];
 
-    // Good tokens (blue circles)
+    // Good tokens (bacteria images)
     for (let i = 0; i < zone.goodTokens; i++) {
       tokens.push(
         <motion.div
           key={`good-${i}`}
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          className="w-5 h-5 rounded-full bg-gradient-to-br from-good-400 to-good-600 border-2 border-white shadow-md pointer-events-none"
+          className="w-8 h-8 rounded-full border-2 border-white shadow-md pointer-events-none overflow-hidden bg-good-100"
           title="Good Bacteria"
-        />
+        >
+          <img src={goodBacteriaToken} alt="Good Bacteria" className="w-full h-full object-cover" />
+        </motion.div>
       );
     }
 
-    // Bad tokens (red circles)
+    // Bad tokens (bacteria images)
     for (let i = 0; i < zone.badTokens; i++) {
       tokens.push(
         <motion.div
           key={`bad-${i}`}
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          className="w-5 h-5 rounded-full bg-gradient-to-br from-bad-400 to-bad-600 border-2 border-white shadow-md pointer-events-none"
+          className="w-8 h-8 rounded-full border-2 border-white shadow-md pointer-events-none overflow-hidden bg-bad-100"
           title="Bad Bacteria"
-        />
+        >
+          <img src={badBacteriaToken} alt="Bad Bacteria" className="w-full h-full object-cover" />
+        </motion.div>
       );
     }
 
@@ -73,7 +79,7 @@ export function Zone({ zone, isSelectable }: ZoneProps) {
       tokens.push(
         <div
           key={`empty-${i}`}
-          className="w-5 h-5 rounded-full bg-gray-200 opacity-40 border border-gray-300 pointer-events-none"
+          className="w-8 h-8 rounded-full bg-gray-200 opacity-40 border border-gray-300 pointer-events-none"
         />
       );
     }

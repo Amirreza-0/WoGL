@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
-import { Users, Bot, GraduationCap, Settings, Info, Activity } from 'lucide-react';
+import { Users, Bot, GraduationCap, Settings, Info } from 'lucide-react';
 import clsx from 'clsx';
+import logoImage from '@/assets/images/ui/WoGL-logo.png';
 
 interface MainMenuProps {
   onStartLocal: () => void;
@@ -63,9 +64,9 @@ export function MainMenu({
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: 'spring', delay: 0.2 }}
-          className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full shadow-xl mb-6"
+          className="inline-flex items-center justify-center w-32 h-32 rounded-full shadow-xl mb-6 overflow-hidden"
         >
-          <Activity size={48} className="text-white" />
+          <img src={logoImage} alt="War of Gutlands Logo" className="w-full h-full object-cover" />
         </motion.div>
         <h1 className="text-5xl font-bold text-amber-900 mb-3">
           The War of Gutlands

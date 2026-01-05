@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
-import { Activity, Settings, HelpCircle } from 'lucide-react';
+import { Settings, HelpCircle } from 'lucide-react';
 import clsx from 'clsx';
 import { useGameStore } from '@/store/gameStore';
+import logoImage from '@/assets/images/ui/WoGL-logo.png';
 
 interface HeaderProps {
   onSettingsClick?: () => void;
@@ -20,7 +21,7 @@ export function Header({ onSettingsClick, onHelpClick }: HeaderProps) {
     <header className="flex items-center justify-between px-6 py-3 bg-white shadow-sm border-b border-amber-200">
       {/* Logo and title */}
       <div className="flex items-center gap-3">
-        <Activity size={28} className="text-amber-600" />
+        <img src={logoImage} alt="WoGL Logo" className="w-10 h-10 rounded-full object-cover" />
         <h1 className="text-xl font-bold text-amber-900">
           The War of Gutlands
         </h1>

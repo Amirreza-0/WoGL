@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import { Shield, Skull, Pill, Zap } from 'lucide-react';
 import type { CardInstance } from '@/types/game';
+import { getCardImage } from '@/data/cardImages';
 
 interface CardProps {
   card: CardInstance;
@@ -64,6 +65,8 @@ export function Card({
     large: 'h-20',
   };
 
+  const cardImage = getCardImage(card.id);
+
   return (
     <motion.div
       onClick={isPlayable ? onClick : undefined}
@@ -89,11 +92,22 @@ export function Card({
       {/* Card illustration area */}
       <div
         className={clsx(
-          'w-full rounded flex items-center justify-center text-3xl bg-gradient-to-br from-slate-100 to-slate-200',
-          iconAreaSize[size]
+          'w-full rounded flex items-center justify-center overflow-hidden',
+          iconAreaSize[size],
+          {
+            'bg-gradient-to-br from-slate-100 to-slate-200': !cardImage,
+          }
         )}
       >
-        {getCardEmoji()}
+        {cardImage ? (
+          <img
+            src={cardImage}
+            alt={card.name}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <span className="text-3xl">{getCardEmoji()}</span>
+        )}
       </div>
 
       {/* Card name */}
